@@ -1,0 +1,15 @@
+[Unit]
+Description=Wagerino cranker v2
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=cranker
+WorkingDirectory=/opt/wagerino-cranker/app
+Environment=CRANKER_CONFIG=/opt/wagerino-cranker/config.json
+ExecStart=/usr/bin/node packages/cranker/src/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
