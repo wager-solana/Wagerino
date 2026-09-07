@@ -1,0 +1,4 @@
+node_modules/
+dist/
+public/idl/
+public/config.local.json

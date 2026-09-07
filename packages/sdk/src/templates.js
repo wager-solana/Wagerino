@@ -24,3 +24,37 @@ export function withMargin(template, marginBps) {
 }
 export const templateRtp = (t) => t.mode === 1 ? t.rtpBps : Math.floor(t.table.reduce((a, [m, p]) => a + m * p, 0) / 10_000_000);
 export const tableToParams = (t) => ({ multBps: t.table.map(([m]) => m), prob: t.table.map(([, p]) => p) });
+
+// ---------- Originals: generated tables ----------
+const DOMAIN = 10_000_000;
+function normalize(rows) {
+  // rows: [multX, weight] with equal multipliers merged; -> [mult_bps, prob] strictly descending, probs summing to DOMAIN
+  const byMult = new Map(); let tot = 0;
+  for (const [m, w] of rows) { byMult.set(m, (byMult.get(m) ?? 0) + w); tot += w; }
+  const sorted = [...byMult.entries()].sort((a, b) => b[0] - a[0]);
+  let acc = 0; const out = sorted.map(([m, w], i) => { let p = Math.floor((w / tot) * DOMAIN); if (i === sorted.length - 1) p = DOMAIN - acc; acc += p; return [Math.round(m * 10000), p]; });
+  return out;
+}
+function capRtp(table, cap = RTP_CAP) {
+  const rtp = table.reduce((a, [m, p]) => a + m * p, 0) / DOMAIN;
+  if (rtp <= cap) return table;
+  const s = cap / rtp; return table.map(([m, p]) => [Math.floor(m * s), p]);
+}
+const binom = (n, k) => { let r = 1; for (let i = 1; i <= k; i++) r = (r * (n - k + i)) / i; return r; };
+const PLINKO = {
+  low:    [16, 9, 2, 1.4, 1.4, 1.2, 1.1, 1, 0.5, 1, 1.1, 1.2, 1.4, 1.4, 2, 9, 16],
+  medium: [110, 41, 10, 5, 3, 1.5, 1, 0.5, 0.3, 0.5, 1, 1.5, 3, 5, 10, 41, 110],
+  high:   [1000, 130, 26, 9, 4, 2, 0.2, 0.2, 0.2, 0.2, 0.2, 2, 4, 9, 26, 130, 1000],
+};
+for (const [risk, slots] of Object.entries(PLINKO)) TEMPLATES[`plinko_${risk}`] = { mode: 0, name: `Plinko ${risk} 16`, table: capRtp(normalize(slots.map((m, i) => [m, binom(16, i)]))) };
+const WHEEL = {
+  low:    { 10: [[1.5, 1], [1.2, 7], [0, 2]], 30: [[1.5, 3], [1.2, 21], [0, 6]], 50: [[1.5, 5], [1.2, 35], [0, 10]] },
+  medium: { 10: [[3, 1], [2, 2], [1.7, 2], [1.5, 2], [0, 3]], 30: [[4, 1], [3, 3], [2, 5], [1.7, 6], [1.5, 6], [0, 9]], 50: [[5, 1], [3, 5], [2, 9], [1.7, 10], [1.5, 10], [0, 15]] },
+  high:   { 10: [[9.9, 1], [0, 9]], 30: [[29.7, 1], [0, 29]], 50: [[49.5, 1], [0, 49]] },
+};
+for (const [risk, bySeg] of Object.entries(WHEEL)) for (const [seg, rows] of Object.entries(bySeg)) TEMPLATES[`wheel_${risk}_${seg}`] = { mode: 0, name: `Wheel ${risk} ${seg}`, table: capRtp(normalize(rows)) };
+// Diamonds: 5 gems from 7 colours; category counts over 7^5 = 16807 (exact combinatorics)
+TEMPLATES.diamonds = { mode: 0, name: "Diamonds", table: capRtp(normalize([[50, 7], [5, 210], [4, 420], [3, 2100], [2, 3150], [0.1, 8400], [0, 2520]])) };
+// Mines: pre-commit, constant-RTP target mode; the UI maps (mines, picks) to a target multiplier.
+TEMPLATES.mines = { mode: 1, name: "Mines", rtpBps: RTP_CAP, minTargetBps: 10_100, maxTargetBps: 10_000_000 };
+export const ORIGINALS = ["coin_flip", "crash", "diamonds", "mines", "plinko_low", "plinko_medium", "plinko_high", ...Object.keys(TEMPLATES).filter((k) => k.startsWith("wheel_"))];

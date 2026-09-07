@@ -17,6 +17,8 @@ export const pdas = (pid) => ({
   bet: (player, userNonce) => find([enc("bet"), player.toBuffer(), le64(userNonce)], pid),
   round: (game, seed) => find([enc("round"), game.toBuffer(), le64(seed)], pid),
   entry: (round, player) => find([enc("entry"), round.toBuffer(), player.toBuffer()], pid),
+  session: (owner) => find([enc("session"), owner.toBuffer()], pid),
+  sessionVault: (owner) => find([enc("session_vault"), owner.toBuffer()], pid),
   market: (creator, seed) => find([enc("market"), creator.toBuffer(), le64(seed)], pid),
   marketEscrow: (market) => find([enc("mescrow"), market.toBuffer()], pid),
   position: (market, player) => find([enc("pos"), market.toBuffer(), player.toBuffer()], pid),

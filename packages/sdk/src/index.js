@@ -185,7 +185,7 @@ export class Wagerino {
     const s = await this.platform(); const g = await this.game(b.game);
     const ix = await this.program.methods.settleBet().accounts({
       settler, platform: this.pda.platform(), game: b.game, gameAuth: this.pda.gameAuth(b.game), bet: betPk, player: b.player, usdcMint: s.usdcMint,
-      playerUsdc: this.usdcAta(b.player, s.usdcMint), settlerUsdc: this.usdcAta(settler, s.usdcMint), referrerUsdc,
+      playerUsdc: b.payoutTo, settlerUsdc: this.usdcAta(settler, s.usdcMint), referrerUsdc,
       vault: g.vault, jackpotVault: s.jackpotVault, vrfRandomness: randomnessPda(Buffer.from(b.force)),
       tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
     }).instruction();
@@ -195,7 +195,7 @@ export class Wagerino {
     const s = await this.platform(); const g = await this.game(b.game);
     const ix = await this.program.methods.refundBet().accounts({
       cranker, platform: this.pda.platform(), game: b.game, gameAuth: this.pda.gameAuth(b.game), bet: betPk, player: b.player, usdcMint: s.usdcMint,
-      playerUsdc: this.usdcAta(b.player, s.usdcMint), vault: g.vault, vrfRandomness: randomnessPda(Buffer.from(b.force)),
+      playerUsdc: b.payoutTo, vault: g.vault, vrfRandomness: randomnessPda(Buffer.from(b.force)),
       tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
     }).instruction();
     return new Transaction().add(ix);
@@ -207,6 +207,38 @@ export class Wagerino {
       creatorUsdc: this.usdcAta(creator, s.usdcMint), tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
     }).instruction();
     return new Transaction().add(ix);
+  }
+
+  // ---------- session vault ----------
+  session(owner) { return this.program.account.session.fetchNullable(this.pda.session(owner)); }
+  async sessionBalance(owner) { try { return bi((await this.connection.getTokenAccountBalance(this.pda.sessionVault(owner))).value.amount); } catch { return 0n; } }
+  async openSessionTx(owner, sessionKey, expiresAt, perBetCap, totalCap) {
+    const s = await this.platform();
+    const ix = await this.program.methods.openSession(sessionKey, bn(expiresAt), bn(perBetCap), bn(totalCap)).accounts({
+      owner, platform: this.pda.platform(), session: this.pda.session(owner), usdcMint: s.usdcMint, sessionVault: this.pda.sessionVault(owner),
+      tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId, rent: SYSVAR_RENT_PUBKEY }).instruction();
+    return new Transaction().add(ix);
+  }
+  async depositSessionIx(owner, amount) {
+    const s = await this.platform();
+    return this.program.methods.depositSession(bn(amount)).accounts({ owner, platform: this.pda.platform(), session: this.pda.session(owner), sessionVault: this.pda.sessionVault(owner), userUsdc: this.usdcAta(owner, s.usdcMint), tokenProgram: TOKEN_PROGRAM_ID }).instruction();
+  }
+  async withdrawSessionTx(owner, amount = 0n) {
+    const s = await this.platform();
+    const ix = await this.program.methods.withdrawSession(bn(amount)).accounts({ owner, platform: this.pda.platform(), session: this.pda.session(owner), sessionVault: this.pda.sessionVault(owner), usdcMint: s.usdcMint, userUsdc: this.usdcAta(owner, s.usdcMint), tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId }).instruction();
+    return new Transaction().add(ix);
+  }
+  async revokeSessionTx(owner) { return new Transaction().add(await this.program.methods.revokeSession().accounts({ owner, session: this.pda.session(owner) }).instruction()); }
+  /** Bet signed by the session key; funded from the session vault. Returns tx to be signed by the session keypair. */
+  async placeBetSessionTx(sessionKey, owner, game, amount, targetBps = 0, referrer = PublicKey.default) {
+    const g = await this.game(game);
+    const userNonce = freshNonce(); const bet = this.pda.bet(owner, userNonce); const force = betForce(bet);
+    const ix = await this.program.methods.placeBetSession(bn(amount), targetBps, bn(userNonce), referrer).accounts({
+      sessionKey, session: this.pda.session(owner), sessionVault: this.pda.sessionVault(owner), platform: this.pda.platform(), game, vault: g.vault, bet,
+      vrf: ORAO_VRF, vrfNetworkState: oraoNetworkState(), vrfTreasury: await this.oraoTreasury(), vrfRandomness: randomnessPda(force),
+      tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId }).instruction();
+    const tx = new Transaction().add(ix); tx.feePayer = sessionKey;
+    return { tx, bet, force, randomness: randomnessPda(force) };
   }
 
   // ---------- rounds ----------
