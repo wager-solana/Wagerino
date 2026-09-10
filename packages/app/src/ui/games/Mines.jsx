@@ -58,7 +58,7 @@ export function Canvas({ result, phase, state, onPick, disabled, onDone }) {
     <div style={{ textAlign: "center", marginTop: 14, minHeight: 30 }}>
       {!result && !phase && <span className="muted">Choose mines and tiles to clear, then <b>Bet</b>. You'll click your tiles after the draw.</span>}
       {active && <span className="muted">{board.clicks.length} / {N} cleared — click any tile · <a className="muted" style={{ textDecoration: "underline", cursor: "pointer" }} onClick={revealAll}>auto-click the rest</a></span>}
-      {board.done && <span style={{ fontWeight: 900, fontSize: 22, color: result.multX > 0 ? "var(--green)" : "var(--red)" }}>{result.multX > 0 ? `${result.multX.toFixed(2)}× · ${fmt(result.payout)} USDC` : "Boom."}</span>}
+      {board.done && result && <span style={{ fontWeight: 900, fontSize: 22, color: result.multX > 0 ? "var(--green)" : "var(--red)" }}>{result.multX > 0 ? `${result.multX.toFixed(2)}× · ${fmt(result.payout)} USDC` : "Boom."}</span>}
     </div>
   </div>;
 }

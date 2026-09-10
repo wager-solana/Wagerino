@@ -1,0 +1,2 @@
+{ "name": "@wagerino/cranker3", "version": "3.0.0", "private": true, "type": "module", "main": "src/index.js",
+  "dependencies": { "@wagerino/sdk3": "file:../sdk3", "@coral-xyz/anchor": "^0.31.1", "@solana/web3.js": "^1.95.0", "@solana/spl-token": "^0.4.9" } }

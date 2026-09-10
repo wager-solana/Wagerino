@@ -16,6 +16,9 @@ function layout(risk, segments) {
   const preset = WHEEL[risk][segments] ?? WHEEL[risk][30]; const segs = []; const total = preset.reduce((a, [, c]) => a + c, 0);
   const queues = preset.map(([m, c]) => ({ m, left: c, every: total / c, acc: 0 }));
   for (let i = 0; i < total; i++) { let best = null; for (const q of queues) { q.acc += 1 / q.every; if (q.left > 0 && (!best || q.acc > best.acc)) best = q; } best.acc -= 1; best.left--; segs.push(best.m); }
+  // break up identical neighbours (including the wrap-around) where a swap fixes it
+  for (let pass = 0; pass < 3; pass++) for (let i = 0; i < total; i++) { const j = (i + 1) % total; if (segs[i] !== segs[j]) continue;
+    for (let k = 0; k < total; k++) { const kp = (k + 1) % total, km = (k - 1 + total) % total; if (segs[k] !== segs[j] && segs[km] !== segs[j] && segs[kp] !== segs[j] && segs[k] !== segs[(j + 1) % total] && segs[k] !== segs[i]) { [segs[j], segs[k]] = [segs[k], segs[j]]; break; } } }
   return segs;
 }
 export function Canvas({ result, phase, state, game }) {

@@ -1,9 +1,14 @@
 {
   "idlPath": "../../idl/wagerino.json",
-  "rpcUrls": ["REPLACE_WITH_YOUR_RPC_URL"],
+  "rpcUrls": [
+    "REPLACE_WITH_YOUR_RPC_URL"
+  ],
   "walletPath": "/opt/wagerino-cranker/cranker.json",
   "hermesUrl": "https://hermes.pyth.network",
   "pollMs": 2000,
   "scanMs": 30000,
-  "minBetForSettle": 0
+  "minBetForSettle": 0,
+  "pythApiKey": "",
+  "statsPort": 8787,
+  "statsFile": ""
 }

@@ -80,6 +80,30 @@ export async function tradeSharesTx(user, gamePk, g, s, shares, buy) {
   const ix = await (buy ? m.buyShares(bn(shares)) : m.sellShares(bn(shares))).accounts(args).instruction();
   const tx = withBudget(ix); tx.feePayer = user; return tx;
 }
+// ---------- create a game (launchpad) ----------
+/** uri codec: "w1|<template>|<emoji>|<skin>" — fits the 64-char on-chain field, readable by any front-end. */
+export const encodeUri = (template, emoji = "", skin = "") => `w1|${template}|${emoji}|${skin}`.slice(0, 64);
+export const decodeUri = (uri) => { const [v, template, emoji, skin] = (uri || "").split("|"); return v === "w1" ? { template, emoji, skin } : null; };
+export async function createGameTx(creator, s, { template, name, emoji, marginBps, seedShares, custom, skinId }) {
+  const { TEMPLATES, withMargin, tableToParams } = await import("./templates.js");
+  const seed = BigInt(Date.now()); const game = pda.game(creator, seed);
+  let p, uri;
+  if (custom) { // builder output: { mode, table:[[multBps, prob]], rtpBps, minTargetBps, maxTargetBps }
+    p = custom.mode === 0 ? { mode: 0, multBps: custom.table.map(([m]) => m), prob: custom.table.map(([, q]) => q), rtpBps: 0, minTargetBps: 0, maxTargetBps: 0 } : { mode: 1, multBps: [], prob: [], rtpBps: custom.rtpBps, minTargetBps: custom.minTargetBps, maxTargetBps: custom.maxTargetBps };
+    uri = skinId ? encodeUri("skin", emoji, skinId) : encodeUri(custom.skinTemplate ?? "custom", emoji);
+  } else { const t = withMargin(TEMPLATES[template], marginBps);
+    p = t.mode === 0 ? { mode: 0, ...tableToParams(t), rtpBps: 0, minTargetBps: 0, maxTargetBps: 0 } : { mode: 1, multBps: [], prob: [], rtpBps: t.rtpBps, minTargetBps: t.minTargetBps, maxTargetBps: t.maxTargetBps };
+    uri = skinId ? encodeUri("skin", emoji, skinId) : encodeUri(template, emoji); }
+  const ix = await program.methods.createGame({ gameSeed: bn(seed), name: name.slice(0, 32), uri, ...p, sideJackpotBps: 0, sideProbPerUsdc: 0 }).accounts({
+    creator, platform: pda.platform(), game, gameAuth: pda.gameAuth(game), usdcMint: s.usdcMint, vault: pda.vault(game), shareMint: pda.shares(game),
+    tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId, rent: SYSVAR_RENT_PUBKEY }).instruction();
+  const tx = withBudget(ix);
+  if (seedShares > 0n) { const gFake = { vault: pda.vault(game), shareMint: pda.shares(game) }; tx.add((await tradeSharesTx(creator, game, gFake, s, seedShares, true)).instructions.at(-1)); }
+  tx.feePayer = creator; return { tx, game };
+}
+export function referrerFromUrl() { try { const m = location.href.match(/[?&]ref=([1-9A-HJ-NP-Za-km-z]{32,44})/); if (m) { localStorage.setItem("wagerino.ref", m[1]); } const r = localStorage.getItem("wagerino.ref"); return r ? new PublicKey(r) : PublicKey.default; } catch { return PublicKey.default; } }
+export async function fetchStats() { if (!cfg.statsUrl) return null; try { const r = await fetch(cfg.statsUrl, { cache: "no-store" }); return r.ok ? r.json() : null; } catch { return null; } }
+
 // ---------- session vault ----------
 export const session = (owner) => program.account.session.fetchNullable(pda.session(owner));
 export const sessionBalance = (owner) => tokenBalance(pda.sessionVault(owner));
@@ -123,7 +147,7 @@ export async function findSettled(betPk) {
   }
   return null;
 }
-export async function backfill(limit = 30) {
+export async function backfill(limit = 60) {
   const sigs = await conn.getSignaturesForAddress(pid, { limit }); const p = parser(); const out = [];
   for (const s of sigs) { try { const tx = await conn.getTransaction(s.signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 }); if (!tx?.meta?.logMessages) continue;
     for (const ev of p.parseLogs(tx.meta.logMessages)) if (ev.name.toLowerCase() === "betsettled") out.push({ ...decodeSettled(ev.data), signature: s.signature, time: (tx.blockTime || 0) * 1000 }); } catch {} }

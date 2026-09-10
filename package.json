@@ -4,13 +4,17 @@
   "type": "module",
   "workspaces": [
     "packages/sdk",
-    "packages/cranker"
+    "packages/cranker",
+    "packages/sdk3",
+    "packages/cranker3"
   ],
   "scripts": {
     "init-platform": "node scripts/init-platform.js",
     "create-game": "node scripts/create-game.js",
     "soak": "node scripts/soak.js",
-    "cranker": "node packages/cranker/src/index.js"
+    "cranker": "node packages/cranker/src/index.js",
+    "cranker3": "node packages/cranker3/src/index.js",
+    "bootstrap3": "node scripts3/bootstrap.js"
   },
   "overrides": {
     "@pythnetwork/pyth-solana-receiver": {

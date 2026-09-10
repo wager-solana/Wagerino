@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { PLINKO, plinkoSlotFor, mapToChain, fmt } from "../../lib/games.js";
+import { PLINKO, plinkoSlotFor, mapToChain, binom16, fmt } from "../../lib/games.js";
 export const initial = { risk: "low" };
 export const pick = (games, state) => games.find((g) => g.account.name.toLowerCase().startsWith(`plinko ${state.risk}`)) ?? games.find((g) => g.account.name.startsWith("Plinko"));
 export const target = () => 0;
@@ -26,7 +26,7 @@ export function Canvas({ result, state, game }) {
     anim.current = requestAnimationFrame(step); return () => cancelAnimationFrame(anim.current);
   }, [result]);
   return <div style={{ width: "100%" }}><canvas ref={ref} width={900} height={560} style={{ width: "100%", display: "block" }} />
-    <div className="plinkoslots">{slots.map((m, i) => <span key={i} className={hit === i ? "hit" : ""} style={{ background: slotColor(m) }}>{m >= 10 ? m.toFixed(0) : m.toFixed(1)}x</span>)}</div></div>;
+    <div className="plinkoslots">{slots.map((m, i) => <span key={i} className={hit === i ? "hit" : ""} style={{ background: slotColor(m) }} title={`${(binom16[i] / 65536 * 100).toFixed(2)}% of drops`}><b>{m >= 100 ? m.toFixed(0) : m >= 10 ? m.toFixed(1) : m.toFixed(2)}×</b><small>{(binom16[i] / 65536 * 100).toFixed(1)}%</small></span>)}</div></div>;
 }
 function drawBoard(c, ball) {
   if (!c) return; const ctx = c.getContext("2d"); const W = c.width, H = c.height; ctx.clearRect(0, 0, W, H);

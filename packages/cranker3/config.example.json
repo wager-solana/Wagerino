@@ -1,0 +1,1 @@
+{ "idlPath": "../../idl/wagerino3.json", "rpcUrls": ["REPLACE_WITH_YOUR_RPC_URL"], "walletPath": "/opt/wagerino-cranker/cranker.json", "pollMs": 2000, "scanMs": 30000, "statsPort": 8787 }

@@ -1,18 +1,30 @@
 import React from "react";
 // Original SVG tile art — one glyph per game, drawn in the game's accent colour.
+export function CrashGlyph({ size = 26 }) {
+  return <svg width={size} height={size} viewBox="0 0 100 100"><defs><linearGradient id="cg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#f5a623" /><stop offset="1" stopColor="#ff4d6d" /></linearGradient></defs>
+    <path d="M12 10v78h78" stroke="#8b90c9" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    <path d="M22 78c28-2 50-16 62-58" stroke="url(#cg)" strokeWidth="9" strokeLinecap="round" fill="none" />
+    <circle cx="84" cy="20" r="8" fill="#ff4d6d" /><circle cx="84" cy="20" r="13" fill="#ff4d6d" opacity=".25" /></svg>;
+}
+export function PlinkoGlyph({ size = 26 }) {
+  const pegs = []; for (let r = 0; r < 5; r++) for (let i = 0; i <= r + 1; i++) pegs.push([50 + (i - (r + 1) / 2) * 15, 24 + r * 13]);
+  return <svg width={size} height={size} viewBox="0 0 100 100"><defs><linearGradient id="pg" x1="0" x2="1"><stop offset="0" stopColor="#ff2d55" /><stop offset=".5" stopColor="#ff8c1a" /><stop offset="1" stopColor="#ffd21a" /></linearGradient></defs>
+    {pegs.map(([x, y], k) => <circle key={k} cx={x} cy={y} r="3.4" fill="#e6e8fa" />)}
+    <circle cx="46" cy="12" r="4" fill="#f2a93b" /><circle cx="46" cy="12" r="7" fill="#f2a93b" opacity=".3" />
+    <rect x="14" y="88" width="72" height="9" rx="3" fill="url(#pg)" /></svg>;
+}
+export function CoinGlyph({ size = 120 }) {
+  return <svg width={size} height={size} viewBox="0 0 100 100"><defs><radialGradient id="c1" cx=".35" cy=".3"><stop offset="0" stopColor="#ffd37a" /><stop offset=".6" stopColor="#f2a93b" /><stop offset="1" stopColor="#b8791f" /></radialGradient></defs><circle cx="50" cy="52" r="38" fill="url(#c1)" /><circle cx="50" cy="52" r="26" fill="none" stroke="#a5651c" strokeWidth="3" /><path d="M50 36l4.5 9.5 10.5 1.5-7.5 7.2 1.8 10.3L50 59.6l-9.3 4.9 1.8-10.3-7.5-7.2 10.5-1.5z" fill="#a5651c" /></svg>;
+}
 export function GameArt({ slug, size = 120 }) {
-  const s = size;
   switch (slug) {
-    case "coinflip": return <svg width={s} height={s} viewBox="0 0 100 100"><defs><radialGradient id="c1" cx=".35" cy=".3"><stop offset="0" stopColor="#ffd37a" /><stop offset=".6" stopColor="#f2a93b" /><stop offset="1" stopColor="#b8791f" /></radialGradient></defs><ellipse cx="50" cy="52" rx="38" ry="38" fill="url(#c1)" /><ellipse cx="50" cy="52" rx="26" ry="26" fill="none" stroke="#a5651c" strokeWidth="3" /><path d="M50 36l4.5 9.5 10.5 1.5-7.5 7.2 1.8 10.3L50 59.6l-9.3 4.9 1.8-10.3-7.5-7.2 10.5-1.5z" fill="#a5651c" /></svg>;
-    case "crash": return <svg width={s} height={s} viewBox="0 0 100 100"><path d="M12 82 C 30 78, 45 70, 60 52 S 82 24, 90 14" fill="none" stroke="#ee6b3b" strokeWidth="7" strokeLinecap="round" /><path d="M12 82 C 30 78, 45 70, 60 52 S 82 24, 90 14 L 90 82 Z" fill="#ee6b3b" opacity=".25" /><circle cx="90" cy="14" r="7" fill="#fff" /></svg>;
-    case "plinko": return <svg width={s} height={s} viewBox="0 0 100 100">{[...Array(5)].map((_, r) => [...Array(r + 2)].map((_, i) => <circle key={r + "-" + i} cx={50 + (i - (r + 1) / 2) * 16} cy={22 + r * 14} r="3.2" fill="#fff" />))}<circle cx="42" cy="14" r="6" fill="#f2a93b" /><rect x="12" y="88" width="76" height="8" rx="2" fill="#ff4d6d" /></svg>;
-    case "mines": return <svg width={s} height={s} viewBox="0 0 100 100"><rect x="14" y="14" width="34" height="34" rx="6" fill="#123a2a" /><rect x="52" y="14" width="34" height="34" rx="6" fill="#0f2431" /><rect x="14" y="52" width="34" height="34" rx="6" fill="#0f2431" /><rect x="52" y="52" width="34" height="34" rx="6" fill="#3a1220" /><path d="M31 22l9 8-9 12-9-12z" fill="#2fd37a" /><circle cx="69" cy="70" r="10" fill="#ff4d6d" /><path d="M74 60l4-6" stroke="#f3e000" strokeWidth="3" /></svg>;
-    case "wheel": return <svg width={s} height={s} viewBox="0 0 100 100">{["#f3e000", "#34e000", "#d8f0ff", "#8b3cf5", "#ff9a2e", "#3b5566", "#f3e000", "#34e000"].map((c, i) => { const a = (i / 8) * Math.PI * 2, b = ((i + 1) / 8) * Math.PI * 2; const p = (t, r) => `${50 + Math.cos(t) * r},${50 + Math.sin(t) * r}`; return <path key={i} d={`M${p(a, 42)} A42 42 0 0 1 ${p(b, 42)} L${p(b, 28)} A28 28 0 0 0 ${p(a, 28)}Z`} fill={c} />; })}<path d="M50 4l6 12h-12z" fill="#ff4d6d" /></svg>;
-    case "diamonds": return <svg width={s} height={s} viewBox="0 0 100 100"><path d="M50 14l28 26-28 46-28-46z" fill="#4dd0ff" /><path d="M22 40h56L50 86z" fill="#1aa6d6" /><path d="M36 40l14-26 14 26z" fill="#a6ecff" /></svg>;
+    case "coinflip": return <CoinGlyph size={size} />;
+    case "crash": return <CrashGlyph size={size} />;
+    case "plinko": return <PlinkoGlyph size={size} />;
+    case "mines": case "wheel": case "diamonds": return <img src={`/icons/${slug}.png`} alt={slug} style={{ width: size, height: size, objectFit: "contain", filter: "drop-shadow(0 8px 18px rgba(0,0,0,.5))" }} />;
     default: return null;
   }
 }
-
 export function RailIcon({ slug }) {
   const P = { width: 26, height: 26, viewBox: "0 0 26 26", fill: "none" };
   switch (slug) {

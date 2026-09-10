@@ -25,6 +25,8 @@ platform), the cranker (permissionless settlement bot that earns the settler rew
 | `pollMs` | settle-check interval for known items (default 2000) |
 | `scanMs` | full reconciliation scan interval (default 30000) |
 | `minBetForSettle` | skip settling bets below this stake in USDC base units (0 = settle everything) |
+| `statsPort` | optional; serves aggregated `/stats.json` (24h volume per game, top players, recent bets, biggest wins) for front-ends |
+| `statsFile` | optional; also write the same JSON to this path every 30s |
 
 Running a cranker requires no permission from anyone; it earns the on-chain settler reward on every bet, round, and market it settles.
 

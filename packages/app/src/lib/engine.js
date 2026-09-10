@@ -7,6 +7,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function runBet({ wallet, sessionKp, gamePk, g, s, amount, targetBps = 0, referrer, onStep }) {
   let betPk, randomness, placeSig;
+  referrer = referrer ?? chain.referrerFromUrl(); if (referrer.equals(wallet.publicKey)) referrer = PublicKey.default;
   if (sessionKp) {
     onStep?.("sign", "Placing bet…");
     const built = await chain.placeBetSessionTx(sessionKp.publicKey, wallet.publicKey, gamePk, g, amount, targetBps, referrer ?? PublicKey.default);

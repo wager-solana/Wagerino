@@ -7,6 +7,8 @@ import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import anchorPkg from "@coral-xyz/anchor";
 const anchor = anchorPkg.default ?? anchorPkg;
 import { Wagerino, randomnessPda, PYTH_RECEIVER } from "@wagerino/sdk";
+import { createServer } from "node:http";
+import { writeFileSync } from "node:fs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const cfgPath = process.env.CRANKER_CONFIG || join(here, "..", "config.json");
@@ -19,6 +21,25 @@ const POLL = cfg.pollMs ?? 2000, SCAN = cfg.scanMs ?? 30000, MIN_BET = BigInt(cf
 let rpcIndex = 0, sdk, conn, errs = 0, listeners = [];
 const bets = new Map(), rounds = new Map(), markets = new Map();
 const done = new Set(); // rounds/markets fully processed: never re-listed by scan
+// ---- stats: rolling aggregates from BetSettled events (24h + all-time since start), served as JSON
+const stats = { since: Date.now(), games: new Map(), players: new Map(), recent: [], bigWins: [] };
+function recordSettled(ev, sig) {
+  const t = Date.now(); const game = ev.game.toBase58(), player = ev.player.toBase58(); const amount = Number(ev.amount) / 1e6, payout = Number(ev.payout) / 1e6;
+  const g = stats.games.get(game) ?? { game, bets: 0, volume: 0, paid: 0, h24: [] }; g.bets++; g.volume += amount; g.paid += payout; g.h24.push([t, amount]); stats.games.set(game, g);
+  const p = stats.players.get(player) ?? { player, bets: 0, wagered: 0, won: 0 }; p.bets++; p.wagered += amount; p.won += payout; stats.players.set(player, p);
+  const row = { t, sig, game, player, amount, payout, mult: ev.multBps / 10000, jackpot: !!ev.jackpot };
+  stats.recent.unshift(row); stats.recent = stats.recent.slice(0, 200);
+  if (payout > amount) { stats.bigWins.push(row); stats.bigWins.sort((a, b) => b.payout - a.payout); stats.bigWins = stats.bigWins.slice(0, 50); }
+}
+function statsJson() {
+  const cutoff = Date.now() - 86400e3;
+  const games = [...stats.games.values()].map((g) => { g.h24 = g.h24.filter(([t]) => t > cutoff); return { game: g.game, bets: g.bets, volume: +g.volume.toFixed(2), paid: +g.paid.toFixed(2), volume24h: +g.h24.reduce((a, [, v]) => a + v, 0).toFixed(2), bets24h: g.h24.length }; });
+  return JSON.stringify({ generatedAt: Date.now(), since: stats.since, games, players: [...stats.players.values()].sort((a, b) => b.wagered - a.wagered).slice(0, 100), recent: stats.recent.slice(0, 100), bigWins: stats.bigWins.slice(0, 20) });
+}
+if (cfg.statsPort) {
+  createServer((req, res) => { res.setHeader("Access-Control-Allow-Origin", "*"); if (req.url.startsWith("/stats")) { res.setHeader("Content-Type", "application/json"); res.end(statsJson()); } else { res.statusCode = 404; res.end(); } }).listen(cfg.statsPort, () => log(`stats server on :${cfg.statsPort}/stats.json`));
+  setInterval(() => { try { if (cfg.statsFile) writeFileSync(cfg.statsFile, statsJson()); } catch {} }, 30000);
+}
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const first = (e) => String(e?.message ?? e).split("\n")[0];
 
@@ -31,8 +52,9 @@ function connect() {
 }
 async function subscribe() {
   for (const id of listeners) { try { await sdk.removeEventListener(id); } catch {} }
-  const safe = (name, fn) => async (ev) => { try { await fn(ev); } catch (e) { log(`event ${name} handler: ${first(e)}`); } };
+  const safe = (name, fn) => async (ev, slot, sig) => { try { await fn(ev, slot, sig); } catch (e) { log(`event ${name} handler: ${first(e)}`); } };
   listeners = [
+    sdk.addEventListener("betSettled", safe("betSettled", async (ev, slot, sig) => { recordSettled(ev, sig); })),
     sdk.addEventListener("betPlaced", safe("betPlaced", async (ev) => { const b = await sdk.betRetry(ev.bet); if (b) { bets.set(ev.bet.toBase58(), b); log(`event: bet ${ev.bet.toBase58().slice(0, 8)} ${Number(ev.amount) / 1e6} USDC`); } })),
     sdk.addEventListener("roundOpened", safe("roundOpened", async (ev) => { rounds.set(ev.round.toBase58(), await sdk.round(ev.round)); log(`event: round opened ${ev.round.toBase58().slice(0, 8)}`); })),
     sdk.addEventListener("roundRequested", safe("roundRequested", async (ev) => { rounds.set(ev.round.toBase58(), await sdk.round(ev.round)); })),
